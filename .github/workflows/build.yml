@@ -1,0 +1,36 @@
+name: Crea APK
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sistema i file nelle cartelle giuste
+        run: |
+          if [ ! -d app ]; then
+            mkdir -p app/src/main/java/it/nunzia/chisi
+            for f in *.gradle; do
+              if grep -q "namespace" "$f"; then mv "$f" app/build.gradle; fi
+            done
+            for f in *.gradle; do
+              if grep -q "com.android.application' version" "$f" && [ "$f" != "build.gradle" ]; then mv "$f" build.gradle; fi
+            done
+            mv AndroidManifest.xml app/src/main/
+            mv *.java app/src/main/java/it/nunzia/chisi/
+          fi
+          find . -path ./.git -prune -o -type f -print
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - run: gradle assembleDebug
+      - run: cp app/build/outputs/apk/debug/app-debug.apk ChiSi.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ChiSi
+          path: ChiSi.apk
