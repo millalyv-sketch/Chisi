@@ -1,0 +1,13 @@
+CHISÌ 2.0 - come ottenere l'app da installare
+
+1. Crea un account gratuito su github.com (se non lo hai).
+2. In alto a destra: "+" > "New repository". Nome: ChiSi. Crea.
+3. Clicca "uploading an existing file" e trascina TUTTO il contenuto
+   di questa cartella (anche la cartella .github). Poi "Commit changes".
+4. Apri la scheda "Actions": parte "Crea APK". Attendi la spunta verde (circa 5 minuti).
+5. Clicca sull'esecuzione completata, in fondo trovi "ChiSi":
+   scaricalo, è uno zip con dentro ChiSi.apk.
+6. Copia ChiSi.apk sul telefono Android, aprilo e consenti
+   "Installa app sconosciute" quando lo chiede.
+7. Apri ChiSì > "Concedi l'accesso alle notifiche" > attiva ChiSì.
+8. Scrivi le tue frasi e tocca "Prova" per sentirle.
