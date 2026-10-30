@@ -19,6 +19,7 @@ jobs:
             done
             mv AndroidManifest.xml app/src/main/
             mv *.java app/src/main/java/it/nunzia/chisi/
+            if [ -f chisi.keystore ]; then mv chisi.keystore app/; fi
           fi
           find . -path ./.git -prune -o -type f -print
       - uses: actions/setup-java@v4
