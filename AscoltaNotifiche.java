@@ -19,16 +19,14 @@ import java.util.Locale;
  */
 public class AscoltaNotifiche extends NotificationListenerService {
 
-    private static final AudioAttributes ATTRIBUTI = new AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-            .build();
+    private static final AudioAttributes ATTRIBUTI = Voce.ATTRIBUTI;
 
     private TextToSpeech voce;
     private boolean vocePronta = false;
     private AudioManager audio;
     private AudioFocusRequest richiestaAudio;
     private int inCoda = 0;
+    private int volumePrima = -1;
 
     private String ultimoAnnuncio = "";
     private long ultimoMomento = 0;
@@ -43,8 +41,7 @@ public class AscoltaNotifiche extends NotificationListenerService {
                 .build();
         voce = new TextToSpeech(this, stato -> {
             if (stato == TextToSpeech.SUCCESS) {
-                voce.setLanguage(Locale.ITALIAN);
-                voce.setAudioAttributes(ATTRIBUTI);
+                Voce.prepara(this, voce);
                 voce.setOnUtteranceProgressListener(new UtteranceProgressListener() {
                     @Override public void onStart(String id) { }
                     @Override public void onDone(String id) { finito(); }
@@ -57,7 +54,11 @@ public class AscoltaNotifiche extends NotificationListenerService {
 
     private synchronized void finito() {
         inCoda = Math.max(0, inCoda - 1);
-        if (inCoda == 0 && audio != null) audio.abandonAudioFocusRequest(richiestaAudio);
+        if (inCoda == 0 && audio != null) {
+            audio.abandonAudioFocusRequest(richiestaAudio);
+            Voce.ripristina(audio, volumePrima);
+            volumePrima = -1;
+        }
     }
 
     @Override
@@ -132,6 +133,8 @@ public class AscoltaNotifiche extends NotificationListenerService {
 
     private synchronized void parla(String frase) {
         if (!vocePronta) return;
+        Voce.prepara(this, voce); // prende le ultime scelte (voce, tono, velocità)
+        if (inCoda == 0) volumePrima = Voce.alza(this, audio);
         if (audio != null) audio.requestAudioFocus(richiestaAudio);
         inCoda++;
         voce.speak(frase, TextToSpeech.QUEUE_ADD, null, "chisi" + System.nanoTime());
@@ -184,7 +187,7 @@ public class AscoltaNotifiche extends NotificationListenerService {
     private boolean eVocale(String t) {
         if (t == null) return false;
         String s = t.toLowerCase(Locale.ROOT);
-        return t.contains("🎤")          // 🎤
+        return t.contains("\uD83C\uDFA4")          // microfono
                 || s.contains("messaggio vocale")
                 || s.contains("voice message")
                 || s.startsWith("audio");

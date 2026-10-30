@@ -10,6 +10,9 @@ import android.graphics.Typeface;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
+import android.speech.tts.Voice;
+import android.media.AudioManager;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
@@ -20,6 +23,7 @@ import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 
@@ -34,6 +38,9 @@ public class MainActivity extends Activity {
     private TextView stato;
     private TextToSpeech prova;
     private LinearLayout box;
+    private Button bottoneVoce;
+    private AudioManager audio;
+    private int volumePrima = -1;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -59,6 +66,16 @@ public class MainActivity extends Activity {
         box.addView(bottone("Concedi l'accesso alle notifiche",
                 v -> startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))));
         box.addView(interruttore("ChiSì acceso", Impostazioni.ATTIVA, true));
+
+        // ---------- La voce ----------
+        sezione("La voce");
+        bottoneVoce = bottone("Scegli la voce (maschile o femminile)", v -> scegliVoce());
+        box.addView(bottoneVoce);
+        cursore("Volume", Voce.VOLUME, 10, 100, 100, "piano", "forte");
+        cursore("Intonazione", Voce.TONO, 50, 200, 100, "grave", "acuta");
+        cursore("Velocità", Voce.VELOCITA, 50, 200, 100, "lenta", "veloce");
+        box.addView(bottone("▶ Senti come suona", v -> parla("Ehi! Ti scrive Peppe!")));
+        box.addView(nota("Consiglio: i punti esclamativi nelle frasi danno più carattere alla voce."));
 
         // ---------- Frasi ----------
         sezione("Le tue frasi");
@@ -101,20 +118,42 @@ public class MainActivity extends Activity {
         box.addView(nota("✔ Durante le telefonate ChiSì sta zitta.\n"
                 + "✔ Se ascolti musica, la abbassa mentre parla.\n"
                 + "✔ Il testo dei messaggi non viene mai letto: niente codici ad alta voce."));
-        box.addView(bottone("Togli il suono di WhatsApp", v -> {
-            Intent i = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
-            i.putExtra(Settings.EXTRA_APP_PACKAGE, "com.whatsapp");
-            try { startActivity(i); } catch (Exception e) { /* WhatsApp non installato */ }
+
+        // ---------- Suoneria muta ----------
+        sezione("Zittire il suono di WhatsApp");
+        box.addView(nota("Per sentire solo ChiSì, metti a WhatsApp la suoneria \"ChiSì muto\"."));
+        box.addView(bottone("1. Crea la suoneria \"ChiSì muto\"", v -> {
+            boolean ok = Voce.creaSuoneriaMuta(this);
+            new AlertDialog.Builder(this)
+                    .setMessage(ok
+                            ? "Fatto! Ora tocca il pulsante 2, poi Suono notifiche (o Tono notifiche) e scegli \"ChiSì muto\"."
+                            : "Su questo telefono non riesco a crearla. Usa il file ChiSi_muto.wav che ti ho mandato in chat.")
+                    .setPositiveButton("OK", null).show();
         }));
-        box.addView(nota("Così senti solo la voce di ChiSì. In alternativa, in WhatsApp: "
-                + "Impostazioni > Notifiche > Suono notifiche > Nessuno."));
+        box.addView(bottone("2. Apri le notifiche di WhatsApp", v -> {
+            Intent i = getPackageManager().getLaunchIntentForPackage("com.whatsapp");
+            if (i == null) return;
+            new AlertDialog.Builder(this)
+                    .setMessage("In WhatsApp tocca i tre puntini in alto > Impostazioni > Notifiche > "
+                            + "Suono notifiche, e scegli \"ChiSì muto\".")
+                    .setPositiveButton("Apri WhatsApp", (d, w) -> startActivity(i))
+                    .setNegativeButton("Annulla", null).show();
+        }));
 
         ScrollView sv = new ScrollView(this);
         sv.addView(box);
         setContentView(sv);
 
+        audio = (AudioManager) getSystemService(AUDIO_SERVICE);
         prova = new TextToSpeech(this, s -> {
-            if (s == TextToSpeech.SUCCESS) prova.setLanguage(Locale.ITALIAN);
+            if (s != TextToSpeech.SUCCESS) return;
+            Voce.prepara(this, prova);
+            prova.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                @Override public void onStart(String id) { }
+                @Override public void onDone(String id) { finitaProva(); }
+                @Override public void onError(String id) { finitaProva(); }
+            });
+            runOnUiThread(this::aggiornaNomeVoce);
         });
     }
 
@@ -300,8 +339,75 @@ public class MainActivity extends Activity {
 
     // ---------- Aiutanti grafici ----------
 
-    private void parla(String f) {
-        if (prova != null && f != null) prova.speak(f, TextToSpeech.QUEUE_FLUSH, null, "prova");
+    private synchronized void parla(String f) {
+        if (prova == null || f == null) return;
+        Voce.prepara(this, prova);
+        if (volumePrima < 0) volumePrima = Voce.alza(this, audio);
+        prova.speak(f, TextToSpeech.QUEUE_FLUSH, null, "prova");
+    }
+
+    private synchronized void finitaProva() {
+        Voce.ripristina(audio, volumePrima);
+        volumePrima = -1;
+    }
+
+    // ---------- Scelta della voce ----------
+
+    private void scegliVoce() {
+        if (prova == null) return;
+        List<Voice> voci = Voce.vociItaliane(prova);
+        if (voci.isEmpty()) {
+            new AlertDialog.Builder(this)
+                    .setMessage("Sul telefono c'è una sola voce italiana. Per averne altre (anche maschili): "
+                            + "Impostazioni del telefono > cerca \"Sintesi vocale\" > Servizi vocali di Google > "
+                            + "Installa dati vocali > Italiano, e scarica le altre voci.")
+                    .setPositiveButton("OK", null).show();
+            return;
+        }
+        String[] nomi = new String[voci.size()];
+        for (int i = 0; i < nomi.length; i++) nomi[i] = Voce.descrivi(voci.get(i), i + 1);
+        new AlertDialog.Builder(this)
+                .setTitle("Tocca una voce per sentirla")
+                .setItems(nomi, (d, i) -> {
+                    pref.edit().putString(Voce.VOCE, voci.get(i).getName()).apply();
+                    aggiornaNomeVoce();
+                    parla("Ciao Nunzia! Sono la voce numero " + (i + 1) + ". Ti scrive Peppe!");
+                })
+                .setNegativeButton("Chiudi", null)
+                .show();
+    }
+
+    private void aggiornaNomeVoce() {
+        if (bottoneVoce == null || prova == null) return;
+        String scelta = pref.getString(Voce.VOCE, null);
+        List<Voice> voci = Voce.vociItaliane(prova);
+        for (int i = 0; i < voci.size(); i++) {
+            if (voci.get(i).getName().equals(scelta)) {
+                bottoneVoce.setText("Voce: " + Voce.descrivi(voci.get(i), i + 1) + "  (cambia)");
+                return;
+            }
+        }
+    }
+
+    private void cursore(String etichetta, String chiave, int min, int max, int predefinito,
+                         String sinistra, String destra) {
+        TextView t = testo("", 18);
+        t.setPadding(0, dp(14), 0, 0);
+        box.addView(t);
+        SeekBar sb = new SeekBar(this);
+        sb.setMax(max - min);
+        int val = pref.getInt(chiave, predefinito);
+        sb.setProgress(val - min);
+        t.setText(etichetta + ": " + sinistra + " ↔ " + destra);
+        sb.setPadding(dp(8), dp(12), dp(8), dp(12));
+        sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            public void onProgressChanged(SeekBar s, int p, boolean daUtente) {
+                if (daUtente) pref.edit().putInt(chiave, p + min).apply();
+            }
+            public void onStartTrackingTouch(SeekBar s) { }
+            public void onStopTrackingTouch(SeekBar s) { parla("Ti scrive Peppe!"); }
+        });
+        box.addView(sb);
     }
 
     private boolean accessoConcesso() {
