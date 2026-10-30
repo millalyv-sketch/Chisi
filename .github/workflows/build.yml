@@ -11,6 +11,7 @@ jobs:
         run: |
           if [ ! -d app ]; then
             mkdir -p app/src/main/java/it/nunzia/chisi
+            mkdir -p app/src/main/res/drawable app/src/main/res/mipmap-anydpi-v26 app/src/main/res/values
             for f in *.gradle; do
               if grep -q "namespace" "$f"; then mv "$f" app/build.gradle; fi
             done
@@ -20,6 +21,9 @@ jobs:
             mv AndroidManifest.xml app/src/main/
             mv *.java app/src/main/java/it/nunzia/chisi/
             if [ -f chisi.keystore ]; then mv chisi.keystore app/; fi
+            if [ -f ic_primo_piano.xml ]; then mv ic_primo_piano.xml app/src/main/res/drawable/; fi
+            if [ -f ic_launcher.xml ]; then mv ic_launcher.xml app/src/main/res/mipmap-anydpi-v26/; fi
+            if [ -f colori.xml ]; then mv colori.xml app/src/main/res/values/; fi
           fi
           find . -path ./.git -prune -o -type f -print
       - uses: actions/setup-java@v4
