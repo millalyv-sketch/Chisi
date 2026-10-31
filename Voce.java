@@ -25,27 +25,82 @@ public class Voce {
     static final String VOCE = "voce";           // nome tecnico della voce scelta
     static final String TONO = "tono";           // 50..200 (100 = normale)
     static final String VELOCITA = "velocita";   // 50..200 (100 = normale)
+    static final String PERSONAGGIO = "personaggio"; // indice in PERSONAGGI
+
+    /** Personaggi: la voce viene trasformata cambiando tono e velocità. */
+    static final String[] PERSONAGGI = {"Normale", "Bambino", "Bambina", "Nonno", "Nonna"};
+    //                                        tono  velocità  genere ("" = qualsiasi)
+    private static final float[] P_TONO =    {0f,   1.75f,    1.95f,   0.62f,  0.80f};
+    private static final float[] P_VEL =     {0f,   1.12f,    1.10f,   0.78f,  0.80f};
+    private static final String[] P_GENERE = {"",   "maschile", "femminile", "maschile", "femminile"};
+
+    private static final java.util.Random caso = new java.util.Random();
 
     static final AudioAttributes ATTRIBUTI = new AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_MEDIA)
             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
             .build();
 
-    /** Applica voce, tono e velocità scelti. */
+    /** Applica voce, personaggio, tono e velocità scelti. */
     static void prepara(Context c, TextToSpeech tts) {
         SharedPreferences p = Impostazioni.pref(c);
         tts.setLanguage(Locale.ITALIAN);
         tts.setAudioAttributes(ATTRIBUTI);
+        int pers = p.getInt(PERSONAGGIO, 0);
+        if (pers < 0 || pers >= PERSONAGGI.length) pers = 0;
         String nome = p.getString(VOCE, null);
+        Voice scelta = null;
         if (nome != null) {
-            try {
-                for (Voice v : tts.getVoices()) {
-                    if (v.getName().equals(nome)) { tts.setVoice(v); break; }
-                }
-            } catch (Exception ignored) { }
+            for (Voice v : vociItaliane(tts)) if (v.getName().equals(nome)) scelta = v;
         }
-        tts.setPitch(p.getInt(TONO, 100) / 100f);
-        tts.setSpeechRate(p.getInt(VELOCITA, 100) / 100f);
+        // Un personaggio maschile/femminile cerca una voce del genere giusto
+        if (pers > 0 && (scelta == null || !P_GENERE[pers].equals(genere(scelta)))) {
+            Voice g = vocePerGenere(tts, P_GENERE[pers], false);
+            if (g != null) scelta = g;
+        }
+        if (scelta != null) tts.setVoice(scelta);
+        applicaTono(c, tts, pers);
+    }
+
+    /** Modalità sorpresa: voce e personaggio a caso. */
+    static void preparaACaso(Context c, TextToSpeech tts) {
+        tts.setLanguage(Locale.ITALIAN);
+        tts.setAudioAttributes(ATTRIBUTI);
+        int pers = caso.nextInt(PERSONAGGI.length);
+        Voice v = pers > 0 ? vocePerGenere(tts, P_GENERE[pers], true) : null;
+        if (v == null) {
+            List<Voice> tutte = vociItaliane(tts);
+            if (!tutte.isEmpty()) v = tutte.get(caso.nextInt(tutte.size()));
+        }
+        if (v != null) tts.setVoice(v);
+        applicaTono(c, tts, pers);
+    }
+
+    private static void applicaTono(Context c, TextToSpeech tts, int pers) {
+        SharedPreferences p = Impostazioni.pref(c);
+        float tono = p.getInt(TONO, 100) / 100f;
+        float vel = p.getInt(VELOCITA, 100) / 100f;
+        if (pers > 0) {
+            tono = P_TONO[pers];
+            vel = P_VEL[pers] * vel; // la velocità scelta da te resta valida
+        }
+        tts.setPitch(tono);
+        tts.setSpeechRate(vel);
+    }
+
+    private static Voice vocePerGenere(TextToSpeech tts, String g, boolean aCaso) {
+        List<Voice> adatte = new ArrayList<>();
+        for (Voice v : vociItaliane(tts)) if (g.equals(genere(v))) adatte.add(v);
+        if (adatte.isEmpty()) return null;
+        return aCaso ? adatte.get(caso.nextInt(adatte.size())) : adatte.get(0);
+    }
+
+    static String genere(Voice v) {
+        String n = v.getName().toLowerCase(Locale.ROOT);
+        // Voci Google italiane: itb e kda femminili, itc e itd maschili
+        if (n.contains("itc") || n.contains("itd") || (n.contains("male") && !n.contains("female"))) return "maschile";
+        if (n.contains("itb") || n.contains("kda") || n.contains("female")) return "femminile";
+        return "";
     }
 
     /** Voci italiane installate sul telefono, quelle senza internet prima. */
@@ -69,12 +124,7 @@ public class Voce {
 
     /** Nome comprensibile: "Voce maschile 1", "Voce femminile 2"... */
     static String descrivi(Voice v, int numero) {
-        String n = v.getName().toLowerCase(Locale.ROOT);
-        String genere;
-        // Voci Google italiane: itb e kda femminili, itc e itd maschili
-        if (n.contains("itc") || n.contains("itd") || n.contains("male") && !n.contains("female")) genere = "maschile";
-        else if (n.contains("itb") || n.contains("kda") || n.contains("female")) genere = "femminile";
-        else genere = "";
+        String genere = genere(v);
         String s = "Voce " + (genere.isEmpty() ? "" : genere + " ") + numero;
         if (v.isNetworkConnectionRequired()) s += " (più naturale, serve internet)";
         return s;

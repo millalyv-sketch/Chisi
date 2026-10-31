@@ -38,20 +38,86 @@ public class Impostazioni {
             "Chi è? È {nome}!",
             "Novità da {nome}!",
             "Corri, ti cerca {nome}!",
-            "Messaggio WhatsApp da {nome}"
+            "Messaggio WhatsApp da {nome}",
+            "Toc toc! È {nome}!",
+            "Attenzione, attenzione: scrive {nome}!",
+            "Indovina chi ti scrive? {nome}!",
+            "C'è posta per te, da {nome}!",
+            "{nome} ha qualcosa da dirti!",
+            "Ultim'ora: {nome} ti ha scritto!",
+            "Fermi tutti! Messaggio da {nome}!",
+            "{nome} si è ricordato di te!",
+            "Sorpresa! Ti scrive {nome}!",
+            "Bip bip! È {nome}!",
+            "Ehi, {nome} vuole parlarti!",
+            "Arriva un pensiero da {nome}!",
+            "Notizia fresca da {nome}!",
+            "Squillo in arrivo: è {nome}!",
+            "Chi si'? È {nome}!",
+            "Uè, t'ha scritto {nome}!",
+            "Guagliò, ce sta {nome}!",
+            "Mamma mia, {nome} t'ha scritto!",
+            "Jamme, rispunne a {nome}!",
+            "Uè uè, è arrivato {nome}!",
+            "Siente a me: t'ha scritto {nome}!",
+            "Chi te cerca? {nome}!",
+            "E chi è chistu ccà? È {nome}!",
+            "Oi né, te scrive {nome}!"
     };
     static final String[] IDEE_VOCALE = {
             "{nome} ti ha mandato un vocale",
             "Vocale in arrivo da {nome}!",
             "Apri le orecchie: {nome} ti ha lasciato un vocale",
-            "{nome} ha parlato: c'è un vocale per te!"
+            "{nome} ha parlato: c'è un vocale per te!",
+            "Messaggio vocale da {nome}",
+            "Prepara le orecchie: vocale di {nome}!",
+            "{nome} ti ha lasciato la sua voce!",
+            "Un vocale fresco fresco da {nome}!",
+            "Ascolta qua: vocale di {nome}!",
+            "{nome} ha registrato qualcosa per te!",
+            "C'è da ascoltare: vocale di {nome}!",
+            "Driin! Vocale da {nome}!",
+            "{nome} ha preferito parlare: vocale per te!",
+            "Novità a voce da {nome}!",
+            "Uè, {nome} t'ha mannato nu vocale!",
+            "Siente, siente: vocale 'e {nome}!",
+            "Guagliò, nu vocale 'e {nome}!",
+            "Arapite 'e recchie: vocale 'e {nome}!",
+            "Chi si'? È {nome}, cu nu vocale!",
+            "{nome} ha parlato, mo' tocca a te sentì!"
     };
     static final String[] IDEE_GRUPPO = {
             "{nome} scrive nel gruppo {gruppo}",
             "Novità nel gruppo {gruppo}, da {nome}",
             "Movimento nel gruppo {gruppo}!",
-            "{nome} chiacchiera nel gruppo {gruppo}"
+            "{nome} chiacchiera nel gruppo {gruppo}",
+            "Nel gruppo {gruppo} parla {nome}!",
+            "Si chiacchiera nel gruppo {gruppo}!",
+            "Gruppo {gruppo}: ha scritto {nome}!",
+            "Riunione nel gruppo {gruppo}: c'è {nome}!",
+            "Il gruppo {gruppo} si sveglia: scrive {nome}!",
+            "Ultime dal gruppo {gruppo}, firmato {nome}!",
+            "{nome} dice la sua nel gruppo {gruppo}!",
+            "Toc toc, gruppo {gruppo}: è {nome}!",
+            "Che si dice nel gruppo {gruppo}? Lo dice {nome}!",
+            "Gruppo {gruppo} in fermento, grazie a {nome}!",
+            "Uè, int'o gruppo {gruppo} scrive {nome}!",
+            "Guagliò, {nome} parla int'o gruppo {gruppo}!",
+            "Int'o gruppo {gruppo} ce sta {nome}!",
+            "Che ammuina int'o gruppo {gruppo}! È {nome}!",
+            "Chiacchiere int'o gruppo {gruppo}: {nome}!",
+            "{nome} fa ammuina int'o gruppo {gruppo}!"
     };
+
+    static final String SORPRESA = "sorpresa";
+
+    /** Modalità sorpresa: una frase a caso tra tutti gli esempi e le frasi scritte da te. */
+    static String fraseACaso(String[] idee, String tueRighe, String nome, String gruppo) {
+        StringBuilder tutte = new StringBuilder();
+        for (String i : idee) tutte.append(i).append("\n");
+        if (tueRighe != null) tutte.append(tueRighe);
+        return componi(tutte.toString(), nome, gruppo);
+    }
 
     private static final Random caso = new Random();
 

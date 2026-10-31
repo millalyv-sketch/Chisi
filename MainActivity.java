@@ -39,6 +39,7 @@ public class MainActivity extends Activity {
     private TextToSpeech prova;
     private LinearLayout box;
     private Button bottoneVoce;
+    private Button bottonePersonaggio;
     private AudioManager audio;
     private int volumePrima = -1;
 
@@ -71,10 +72,22 @@ public class MainActivity extends Activity {
         sezione("La voce");
         bottoneVoce = bottone("Scegli la voce (maschile o femminile)", v -> scegliVoce());
         box.addView(bottoneVoce);
+        bottonePersonaggio = bottone("", v -> scegliPersonaggio());
+        aggiornaPersonaggio();
+        box.addView(bottonePersonaggio);
         cursore("Volume", Voce.VOLUME, 10, 100, 100, "piano", "forte");
         cursore("Intonazione", Voce.TONO, 50, 200, 100, "grave", "acuta");
         cursore("Velocità", Voce.VELOCITA, 50, 200, 100, "lenta", "veloce");
-        box.addView(bottone("▶ Senti come suona", v -> parla("Ehi! Ti scrive Peppe!")));
+        box.addView(interruttore("🎲 Modalità sorpresa: ogni volta frase, voce e personaggio a caso",
+                Impostazioni.SORPRESA, false));
+        box.addView(bottone("▶ Senti come suona", v -> {
+            if (pref.getBoolean(Impostazioni.SORPRESA, false)) {
+                parla(Impostazioni.fraseACaso(Impostazioni.IDEE_MESSAGGIO,
+                        Impostazioni.frase(this, Impostazioni.FRASE_MESSAGGIO, Impostazioni.DEF_MESSAGGIO), "Peppe", null));
+            } else {
+                parla("Ehi! Ti scrive Peppe!");
+            }
+        }));
         box.addView(nota("Consiglio: i punti esclamativi nelle frasi danno più carattere alla voce."));
 
         // ---------- Frasi ----------
@@ -341,7 +354,8 @@ public class MainActivity extends Activity {
 
     private synchronized void parla(String f) {
         if (prova == null || f == null) return;
-        Voce.prepara(this, prova);
+        if (pref.getBoolean(Impostazioni.SORPRESA, false)) Voce.preparaACaso(this, prova);
+        else Voce.prepara(this, prova);
         if (volumePrima < 0) volumePrima = Voce.alza(this, audio);
         prova.speak(f, TextToSpeech.QUEUE_FLUSH, null, "prova");
     }
@@ -375,6 +389,29 @@ public class MainActivity extends Activity {
                 })
                 .setNegativeButton("Chiudi", null)
                 .show();
+    }
+
+    private void scegliPersonaggio() {
+        new AlertDialog.Builder(this)
+                .setTitle("Chi deve parlare?")
+                .setItems(Voce.PERSONAGGI, (d, i) -> {
+                    pref.edit().putInt(Voce.PERSONAGGIO, i).apply();
+                    aggiornaPersonaggio();
+                    parla(i == 0 ? "Ehi! Ti scrive Peppe!" : "Ciao! Sono " + nomePersonaggio(i) + ". Ti scrive Peppe!");
+                })
+                .setNegativeButton("Chiudi", null)
+                .show();
+    }
+
+    private String nomePersonaggio(int i) {
+        String[] n = {"", "il bambino", "la bambina", "il nonno", "la nonna"};
+        return n[i];
+    }
+
+    private void aggiornaPersonaggio() {
+        int i = pref.getInt(Voce.PERSONAGGIO, 0);
+        if (i < 0 || i >= Voce.PERSONAGGI.length) i = 0;
+        bottonePersonaggio.setText("Personaggio: " + Voce.PERSONAGGI[i] + "  (cambia)");
     }
 
     private void aggiornaNomeVoce() {

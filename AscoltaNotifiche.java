@@ -112,6 +112,18 @@ public class AscoltaNotifiche extends NotificationListenerService {
     }
 
     private String scegliFrase(Mittente m, String chiavePersona, String chiaveGruppo) {
+        boolean sorpresa = Impostazioni.pref(this).getBoolean(Impostazioni.SORPRESA, false);
+        if (sorpresa) {
+            String propria = Impostazioni.frasePersona(this, m.gruppo != null ? chiaveGruppo : chiavePersona);
+            if (propria != null && !m.vocale) return Impostazioni.componi(propria, m.nome, m.gruppo);
+            String[] idee; String chiave; String def;
+            if (m.vocale) { idee = Impostazioni.IDEE_VOCALE; chiave = Impostazioni.FRASE_VOCALE; def = Impostazioni.DEF_VOCALE; }
+            else if (m.gruppo != null) { idee = Impostazioni.IDEE_GRUPPO; chiave = Impostazioni.FRASE_GRUPPO; def = Impostazioni.DEF_GRUPPO; }
+            else { idee = Impostazioni.IDEE_MESSAGGIO; chiave = Impostazioni.FRASE_MESSAGGIO; def = Impostazioni.DEF_MESSAGGIO; }
+            String f = Impostazioni.fraseACaso(idee, Impostazioni.frase(this, chiave, def), m.nome, m.gruppo);
+            if (f != null && m.vocale && m.gruppo != null && !f.contains(m.gruppo)) f += ", nel gruppo " + m.gruppo;
+            return f;
+        }
         if (m.vocale) {
             String f = Impostazioni.componi(
                     Impostazioni.frase(this, Impostazioni.FRASE_VOCALE, Impostazioni.DEF_VOCALE),
@@ -133,7 +145,9 @@ public class AscoltaNotifiche extends NotificationListenerService {
 
     private synchronized void parla(String frase) {
         if (!vocePronta) return;
-        Voce.prepara(this, voce); // prende le ultime scelte (voce, tono, velocità)
+        // prende le ultime scelte (voce, tono, velocità), o tutto a caso in modalità sorpresa
+        if (Impostazioni.pref(this).getBoolean(Impostazioni.SORPRESA, false)) Voce.preparaACaso(this, voce);
+        else Voce.prepara(this, voce);
         if (inCoda == 0) volumePrima = Voce.alza(this, audio);
         if (audio != null) audio.requestAudioFocus(richiestaAudio);
         inCoda++;
@@ -187,7 +201,7 @@ public class AscoltaNotifiche extends NotificationListenerService {
     private boolean eVocale(String t) {
         if (t == null) return false;
         String s = t.toLowerCase(Locale.ROOT);
-        return t.contains("\uD83C\uDFA4")          // microfono
+        return t.contains("🎤")          // 🎤
                 || s.contains("messaggio vocale")
                 || s.contains("voice message")
                 || s.startsWith("audio");
